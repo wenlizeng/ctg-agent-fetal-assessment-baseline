@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.git/
+tests/
+examples/
+output/
+data/
