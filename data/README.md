@@ -9,7 +9,7 @@ data/
 │   ├── labels/train/fetal/
 │   └── manifests/train.csv
 ├── task2/
-│   ├── data/train/<database>/
+│   ├── data/train/<database>__<source-file>.csv
 │   └── manifests/train_windows.csv
 ├── task3/
 │   ├── data/train/
@@ -22,6 +22,6 @@ data/
     └── manifests/train.csv
 ```
 
-Paths stored in the official manifests are relative to this `data/` directory. Task2 is released as one training set; database names that remain in source paths are provenance metadata, not separate challenge subsets.
+Paths stored in the official manifests are relative to this `data/` directory. Task2 is released as one flat training set. Its filenames use `<database>__<source-file>.csv` only to avoid source-record name collisions; the database prefix is provenance metadata, not a separate challenge subset.
 
 Only training inputs, training labels and training manifests belong here. Validation and test inputs and labels remain private.
