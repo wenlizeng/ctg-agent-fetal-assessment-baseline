@@ -47,8 +47,12 @@ The released training inputs, labels and manifests are stored directly under `da
 
 The runner directly accepts the released training manifests. Paths in those manifests are resolved relative to `data/` by default.
 
-- Task1 and Task4: `record_id,wav_path`
-- Task2 and Task3: `record_id,fhr_path`
+- Task1: `record_id,wav_path,fetal_path,source_record_id`
+- Task2: `record_id,fhr_path,window_start_sample,window_end_sample,source_record_id`
+- Task3: `record_id,fhr_path,label,patient_id,source_record_id`
+- Task4: `record_id,wav_path,fetal_path,segmentation_path,risk_label,source_record_id`
+
+All paths are relative to `data/`. `source_record_id` and `patient_id` support grouped training splits; the published manifests contain training samples only. Task2's source CSV contains the `fhr`, `baseline`, and `accAndDec` columns. Task1 and Task4 share the same training DUS recordings.
 
 FHR files may be `.npy`, `.npz` (`fhr` or `predicted_fhr`) or CSV with an `fhr`/`FHR` column. Task2 and Task3 expect a 20-minute, 4 Hz signal; invalid lengths are normalized by the published preprocessing code.
 

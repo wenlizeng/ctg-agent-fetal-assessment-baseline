@@ -36,5 +36,5 @@ The controller is a finite-state rule agent with an explicit action allow-list. 
 ## Important limitations
 
 - Results are split-dependent and have not yet been confirmed on the hidden competition test set.
-- The package includes inference only; training data and private labels are not included.
+- The package includes inference code and public training data; model weights and private validation/test data are not included.
 - The organizer must finalize the repository license, Docker resource limits, schemas and scoring definitions before public release.

@@ -12,28 +12,14 @@ def resolve_path(root: Path, value: str) -> Path:
     return path if path.is_absolute() else root / path
 
 
-OFFICIAL_COLUMNS = {
-    "task1": ("label", "task1_input_wav", "wav_path"),
-    "task2": ("segment_id", "organized_source_path", "fhr_path"),
-    "task3": ("index", "organized_signal_path", "fhr_path"),
-    "task4": ("label", "task4_input_wav", "wav_path"),
-}
-
-
 def read_manifest(path: Path, input_root: Path, task: str) -> list[dict[str, object]]:
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         rows = list(csv.DictReader(handle))
     if not rows:
         raise ValueError(f"Manifest is empty: {path}")
-    id_column, source_column, target_column = OFFICIAL_COLUMNS[task]
-    for row in rows:
-        row["record_id"] = row.get("record_id") or row.get(id_column)
-        row[target_column] = row.get(target_column) or row.get(source_column)
+    target_column = "wav_path" if task in ("task1", "task4") else "fhr_path"
     if any(not row.get("record_id") or not row.get(target_column) for row in rows):
-        raise ValueError(
-            f"{task} manifest requires record_id/{target_column}, or official columns "
-            f"{id_column}/{source_column}: {path}"
-        )
+        raise ValueError(f"{task} manifest requires record_id and {target_column}: {path}")
     if len({row["record_id"] for row in rows}) != len(rows):
         raise ValueError("Manifest record_id values must be unique")
     return [{**row, "_input_root": input_root} for row in rows]
