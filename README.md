@@ -1,114 +1,136 @@
-# CTG Challenge Official Rule-Agent Baseline
+# CTG Agent Challenge Baseline
 
-This repository is the offline reference baseline for the CTG challenge. It contains three frozen task tools and a deterministic rule-based Task4 controller. It does not use an external API or an LLM.
+## Update Notes
 
-## Architecture
+**November 2, 2026** — Updated the baseline release with the Qwen2.5-1.5B-Instruct LoRA Agent, English request routing, Task1–Task4 workflow instructions, checkpoint descriptions (including the Task3 dataset-input and Task4 reconstructed-input weights), model download guidance, and reproduction steps.
 
-```text
-Task1Tool: DUS WAV -> reconstructed 4 Hz FHR
-Task2Tool: FHR -> three-class probabilities and labels
-Task3Tool: FHR + Task2 probabilities -> abnormality probability
+Official baseline for **Agent-Based Model for Fetal Well-being Assessment through Cardiotocography**.
 
-RuleAgent:
-RUN_TASK1 -> CHECK_FHR_QUALITY -> RUN_TASK2 -> RUN_TASK3
-          -> GENERATE_REPORT -> FINISH
-```
-
-The controller can execute only the actions declared in `ctg_baseline/agent.py`. A reconstruction coverage below 95% does not suppress required outputs, but marks the final report as `abstain=true`.
-
-## Model checkpoints
-
-- `task1_autofhr.pt`: Task1 reconstruction model.
-- `task2_light_unet.pt`: Task2 FHR-only three-class segmentation model.
-- `task3_fused_native.pt`: Task3 independent-track model evaluated on real FHR plus Task2 probabilities.
-- `task3_fused_flow.pt`: the same Task3 architecture adapted to Task1-reconstructed FHR for Task4.
-
-Model weights are intentionally not included in this public repository. Place locally trained or organizer-provided weights under `checkpoints/` using the filenames above before running inference. Training caches, optimizer states, validation predictions and other experimental outputs are also excluded.
-
-## Repository layout and dataset placement
-
-Keep the baseline and released dataset under one project root:
+The baseline models are trained using the challenge training data. A local **Qwen2.5-1.5B-Instruct model with a CTG LoRA adapter** interprets English requests, calls the task models, and produces a structured JSON report and an English assessment report.
 
 ```text
-ctg_agent_baseline_release/
-├── checkpoints/
-├── ctg_baseline/
-├── data/                 # released training inputs and labels
-│   ├── task1/
-│   ├── task2/
-│   ├── task3/
-│   └── task4/
-└── output/               # created automatically
+Task1: DUS -> FHR reconstruction
+Task2: FHR -> baseline, acceleration, and deceleration segmentation
+Task3: FHR + Task2 probabilities -> fetal risk probability
+Task4: DUS -> Task1 -> Task2 -> Task3 -> assessment report
 ```
 
-The released training inputs, labels and manifests are stored directly under `data/`. Detailed placement rules are in `data/README.md`. Validation and test data are not included in this public repository.
-
-## Input manifests
-
-The runner directly accepts the released training manifests. Paths in those manifests are resolved relative to `data/` by default.
-
-- Task1: `record_id,wav_path,fetal_path,source_record_id`
-- Task2: `record_id,fhr_path,window_start_sample,window_end_sample,source_record_id`
-- Task3: `record_id,fhr_path,label,patient_id,source_record_id`
-- Task4: `record_id,wav_path,fetal_path,segmentation_path,risk_label,source_record_id`
-
-All paths are relative to `data/`. `source_record_id` and `patient_id` support grouped training splits; the published manifests contain training samples only. Task2's source CSV contains the `fhr`, `baseline`, and `accAndDec` columns. Task1 and Task4 share the same training DUS recordings.
-
-FHR files may be `.npy`, `.npz` (`fhr` or `predicted_fhr`) or CSV with an `fhr`/`FHR` column. Task2 and Task3 expect a 20-minute, 4 Hz signal; invalid lengths are normalized by the published preprocessing code.
-
-## Run locally
-
-Install a PyTorch build appropriate for the local CPU/CUDA environment first, then install the remaining dependencies:
+## 1. Installation
 
 ```bash
-pip install -r requirements.txt
+git clone https://github.com/wenlizeng/ctg-agent-fetal-assessment-baseline.git
+cd ctg-agent-fetal-assessment-baseline
 ```
+
+Use Python 3.10 and install [PyTorch](https://pytorch.org/get-started/locally/) for your CUDA environment, followed by the baseline dependencies:
 
 ```bash
-python -m ctg_baseline.run task1
-python -m ctg_baseline.run task2
-python -m ctg_baseline.run task3
-python -m ctg_baseline.run task4
+python -m pip install -r requirements.txt accelerate==1.1.1
 ```
 
-The public baseline loads only the training manifest for each task. The defaults are `--input-root data` and `--output-root output`. A custom manifest remains available for organizer-side checks:
+Run the following commands from the repository root.
+
+## 2. Data and model files
+
+Place the challenge training dataset under `data/`, following the [dataset directory structure](data/README.md). File paths in the manifests are relative to `data/`.
+
+The trained task checkpoints and CTG LoRA adapter are included in the repository under `checkpoints/` and `models/qwen_lora/`:
+
+```text
+repository-root/
+|-- ctg_baseline/
+|-- checkpoints/
+|   |-- task1_autofhr.pt
+|   |-- task2_light_unet.pt
+|   |-- task3_fused_native.pt
+|   `-- task3_fused_flow.pt
+|-- models/
+|   |-- qwen/
+|   `-- qwen_lora/
+|       |-- adapter_config.json
+|       `-- adapter_model.safetensors
+|-- data/
+|   |-- task1/manifests/train.csv
+|   |-- task2/manifests/train_windows.csv
+|   |-- task3/manifests/train.csv
+|   `-- task4/manifests/train.csv
+`-- output/
+```
+
+| Checkpoint | Purpose |
+|---|---|
+| `task1_autofhr.pt` | Reconstruct FHR from DUS |
+| `task2_light_unet.pt` | Segment baseline, acceleration, and deceleration |
+| `task3_fused_native.pt` | Task3 classification using FHR supplied by the Task3 dataset and Task2 probabilities |
+| `task3_fused_flow.pt` | Task4 classification using Task1-reconstructed FHR and Task2 probabilities |
+| `adapter_model.safetensors` | CTG-specific Qwen LoRA adapter |
+
+The two Task3 checkpoints share the same model architecture but use different trained weights. The Task3 checkpoint is trained on FHR supplied with the Task3 dataset; the Task4 checkpoint is adapted to FHR reconstructed by Task1. The runner automatically selects the checkpoint for the requested workflow.
+
+## 3. Download Qwen
+
+Download the base model from the official [Qwen2.5-1.5B-Instruct repository](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct):
 
 ```bash
-python -m ctg_baseline.run task2 --manifest examples/task2_task3_manifest.csv --input-root /custom/data
+python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='Qwen/Qwen2.5-1.5B-Instruct', revision='989aa7980e4cf806f80c7fef2b1adb7bc71aa306', local_dir='models/qwen')"
 ```
 
-Smoke test without challenge data:
+Keep the downloaded model weights, configuration, and tokenizer files together in `models/qwen/`. Inference loads Qwen and the CTG adapter locally.
+
+## 4. Run the baseline
+
+Run an individual task or the complete Task4 workflow:
 
 ```bash
-python tests/smoke_test.py
+python -m ctg_baseline.run task1 --device cuda --output-root output/task1
+python -m ctg_baseline.run task2 --device cuda --output-root output/task2
+python -m ctg_baseline.run task3 --device cuda --output-root output/task3
+python -m ctg_baseline.run task4 --device cuda --llm-model models/qwen --lora-adapter models/qwen_lora --output-root output/task4
 ```
 
-## Docker
+Each command processes its training manifest. To use another manifest, supply `--manifest PATH --input-root DATA_DIRECTORY`. Use `--device cpu` for CPU inference.
 
-```bash
-docker build -t ctg-rule-agent-baseline:1.0 .
-docker run --rm --gpus all --network none \
-  -v /host/data:/app/data:ro \
-  -v /host/output:/app/output \
-  ctg-rule-agent-baseline:1.0 \
-  task4
+For a single-case example, run the following in PowerShell:
+
+```powershell
+New-Item -ItemType Directory -Force output | Out-Null
+Import-Csv data/task4/manifests/train.csv | Select-Object -First 1 | Export-Csv output/task4_one.csv -NoTypeInformation -Encoding UTF8
+python -m ctg_baseline.run task4 --manifest output/task4_one.csv --input-root data --output-root output/example --device cuda --llm-model models/qwen --lora-adapter models/qwen_lora
 ```
 
-The scoring program and reference labels must remain outside the participant container.
+Task4 results are saved under the selected output directory:
 
-## Output
+```text
+task4/
+|-- artifacts/<record_id>.npz    # FHR, segmentation probabilities, and labels
+|-- reports/<record_id>.json    # structured report
+|-- reports/<record_id>.txt     # English report
+|-- predictions.jsonl          # risk predictions
+`-- agent_trace.jsonl           # agent decisions and tool calls
+```
 
-- Task1: `task1/<record_id>.npz`
-- Task2: `task2/<record_id>.npz`
-- Task3: `task3/classification.jsonl`
-- Task4: predictions, reports, artifacts and `agent_trace.jsonl`
+## 5. Use English instructions
 
-## Reproducibility and scope
+Start an interactive session with a training DUS recording (PowerShell):
 
-The official baseline is deliberately small and auditable. Participants may replace the rule controller with a local LLM, a learned policy or another agent implementation, provided that the official task outputs, offline Docker constraints and resource limits are respected.
+```powershell
+$case = Import-Csv data/task4/manifests/train.csv | Select-Object -First 1
+$dus = Join-Path (Resolve-Path data).Path $case.wav_path
+python -m ctg_baseline.chat --input $dus --input-kind dus --record-id $case.record_id --device cuda --llm-model models/qwen --lora-adapter models/qwen_lora --output output/chat
+```
 
-The model architecture, preprocessing, checkpoint roles and current validation-only results are documented in `MODEL_CARD.md`.
+Example requests:
 
-## License
+```text
+Reconstruct FHR from this Doppler ultrasound recording.
+Segment the FHR into baseline, acceleration, and deceleration.
+Assess fetal risk for this recording.
+Generate a complete CTG assessment report.
+exit
+```
 
-No reuse license is asserted in this staging directory. The organizer must add the approved code and model-weight license before publishing the GitHub repository.
+The Agent reuses intermediate outputs within the session. For FHR input, use `--input-kind fhr` and a 4,800-sample, 4 Hz FHR file in NPY, NPZ, or CSV format. Add `--request "Assess fetal risk for this recording."` to run one request and exit.
+
+## Contact
+
+[wenlizeng7461@gmail.com](mailto:wenlizeng7461@gmail.com)

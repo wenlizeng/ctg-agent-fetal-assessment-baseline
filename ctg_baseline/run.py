@@ -62,8 +62,12 @@ def run_task3(rows, output: Path, device: torch.device) -> None:
         append_jsonl(prediction_file, {"record_id": row["record_id"], **result})
 
 
-def run_task4(rows, output: Path, device: torch.device, batch_size: int) -> None:
-    agent = RuleAgent(device)
+def run_task4(rows, output: Path, device: torch.device, batch_size: int, agent_kind="qwen", model_path=None, llm_device=None, adapter_path=None) -> None:
+    if agent_kind == "qwen":
+        from .llm_agent import QwenAgent
+        agent = QwenAgent(device, model_path, llm_device, adapter_path=adapter_path)
+    else:
+        agent = RuleAgent(device)
     prediction_file = output / "task4" / "predictions.jsonl"
     trace_file = output / "task4" / "agent_trace.jsonl"
     prediction_file.unlink(missing_ok=True)
@@ -98,6 +102,10 @@ def main() -> None:
     parser.add_argument("--output-root", type=Path, default=PROJECT_ROOT / "output")
     parser.add_argument("--device", choices=("cpu", "cuda"), default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--task1-batch-size", type=int, default=32)
+    parser.add_argument("--agent", choices=("qwen", "rule"), default="qwen")
+    parser.add_argument("--llm-model", type=Path)
+    parser.add_argument("--llm-device", choices=("cpu", "cuda"))
+    parser.add_argument("--lora-adapter", type=Path)
     args = parser.parse_args()
     if args.manifest is None:
         args.manifest = args.input_root / args.task / "manifests" / DEFAULT_MANIFESTS[args.task]
@@ -113,7 +121,7 @@ def main() -> None:
     elif args.task == "task3":
         run_task3(rows, args.output_root, device)
     else:
-        run_task4(rows, args.output_root, device, args.task1_batch_size)
+        run_task4(rows, args.output_root, device, args.task1_batch_size, args.agent, args.llm_model, args.llm_device, args.lora_adapter)
 
 
 if __name__ == "__main__":

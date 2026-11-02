@@ -2,7 +2,7 @@
 
 ## Intended use
 
-This package is the organizer's executable reference baseline for four CTG challenge tracks. It is intended to demonstrate the required file interfaces and a reproducible offline rule-agent workflow. It is not a medical device and must not be used for clinical decision-making.
+This package is the executable reference baseline for four CTG challenge tracks. It includes three signal-processing tools and a local Qwen agent that routes English requests, calls the tools, and prepares structured reports. The Task4 rule controller is retained as a comparison option.
 
 ## Components
 
@@ -10,31 +10,22 @@ This package is the organizer's executable reference baseline for four CTG chall
 |---|---|---|---|
 | Task1 tool | DUS waveform | reconstructed 4 Hz FHR | `task1_autofhr.pt` |
 | Task2 tool | 20-minute 4 Hz FHR | baseline/acceleration/deceleration probabilities and labels | `task2_light_unet.pt` |
-| Task3 native tool | real FHR + Task2 probabilities | abnormality probability and class | `task3_fused_native.pt` |
-| Task3 flow tool | reconstructed FHR + Task2 probabilities | abnormality probability and class | `task3_fused_flow.pt` |
+| Task3 dataset-input tool | FHR supplied by the Task3 dataset + Task2 probabilities | abnormality probability and class | `task3_fused_native.pt` |
+| Task4 reconstructed-input tool | Task1-reconstructed FHR + Task2 probabilities | abnormality probability and class | `task3_fused_flow.pt` |
 | Rule agent | tool outputs and quality state | structured JSON, English report and execution trace | deterministic rules |
+| Qwen agent (default Task4) | English request and tool observations | tool calls and evidence-based English report | Qwen2.5-1.5B-Instruct with CTG LoRA adapter |
 
 Task2 uses a three-channel softmax output. Task3 uses a single-logit sigmoid classifier; the exported `risk_probability` is the probability of class 1, and `risk_class` uses a fixed threshold of 0.5.
 
-## Current validation results
+## Validation results
 
-The following values are development/validation results from the organizer's current split. They are not hidden-test results and must not be presented as final leaderboard scores.
-
-| Track | Primary score | Supporting results |
-|---|---:|---|
-| Task1 | 0.16299 | MAE 4.0401 bpm; RMSE 6.8385 bpm |
-| Task2 | 0.72230 | challenge Task2 score |
-| Task3 native | 0.77458 | AUROC 0.83033; F1 0.74235; normalized MCC derived from MCC 0.50215 |
-| Task4 flow | 0.69646 | flow Task2 0.53285; flow Task3 0.83591; report 0.62353; E2E 0.71469 |
-
-The recorded development overall score was 0.61446 under the then-current overall formula. Recompute all scores with the final published scoring package before release if the competition rules change.
+On the 495-record Task4 validation set, the Qwen LoRA baseline achieved Task4 Score 0.697321, E2E Score 0.713333, and Report Score 0.633273 using the organizer's Task4 scoring implementation. Task1 and Task2 validation outputs were reused after checkpoint-hash verification; Task3 was recomputed using the flow checkpoint.
 
 ## Agent behavior
 
-The controller is a finite-state rule agent with an explicit action allow-list. It orchestrates the three learned tools, checks reconstruction coverage, selects the flow-specific Task3 checkpoint, generates event-grounded reports, and records an action trace. It does not call an external service or execute model-generated code.
+The Qwen controller selects a requested goal and chooses only from registered actions. The executor checks tool dependencies, reuses completed outputs, and records an action trace. Structured report fields and event intervals are generated from tool results. A rule-based controller remains available with `--agent rule`.
 
 ## Important limitations
 
-- Results are split-dependent and have not yet been confirmed on the hidden competition test set.
-- The package includes inference code and public training data; model weights and private validation/test data are not included.
-- The organizer must finalize the repository license, Docker resource limits, schemas and scoring definitions before public release.
+- Task1–Task3 use separately trained models. Task3 dataset-input and Task4 reconstructed-input workflows use different checkpoints.
+- Qwen base weights are downloaded separately from the official Qwen2.5-1.5B-Instruct model repository; the CTG LoRA adapter is included under `models/qwen_lora/`.

@@ -3,6 +3,5 @@ __pycache__/
 .venv/
 output/
 *.log
-checkpoints/*.pt
-checkpoints/SHA256SUMS
 runs/
+models/qwen/

@@ -2,3 +2,5 @@ numpy>=1.26,<3
 PyWavelets>=1.5
 scikit-image>=0.22
 scipy>=1.11
+transformers==4.46.3
+peft==0.13.2
