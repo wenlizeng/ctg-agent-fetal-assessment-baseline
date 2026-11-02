@@ -2,9 +2,9 @@
 
 The Task4 baseline uses Qwen2.5-1.5B-Instruct with the included CTG LoRA adapter. The base Qwen model is downloaded separately; see the [README](README.md) for setup and reproduction commands.
 
-The agent accepts English requests for FHR reconstruction, CTG event segmentation, fetal risk assessment, or a complete report. It routes each request to the registered Task1, Task2, and Task3 tools as needed. Results and intermediate tool outputs are reused during an interactive session.
+The agent accepts English requests for FHR reconstruction, CTG event segmentation, fetal risk assessment, or a complete report. Qwen interprets the request, selects the next eligible registered tool, reads structured observations from completed tools, and decides whether another action is needed or the objective is complete. The Python executor validates prerequisites and runs only the registered tools. Results and intermediate outputs are reused during an interactive session.
 
-For a complete Task4 analysis, the workflow is:
+For a complete Task4 request, Qwen orchestrates the following end-to-end tools, selecting each next action from those whose prerequisites are met:
 
 ```text
 DUS -> Task1 FHR reconstruction -> Task2 event segmentation

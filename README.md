@@ -2,11 +2,11 @@
 
 ## Update Notes
 
-**November 2, 2026** — Updated the baseline release with the Qwen2.5-1.5B-Instruct LoRA Agent, English request routing, Task1–Task4 workflow instructions, checkpoint descriptions (including the Task3 dataset-input and Task4 reconstructed-input weights), model download guidance, and reproduction steps.
+**November 2, 2026** — Updated the baseline release with a Qwen-driven Task4 tool-use loop. Qwen interprets the request, selects eligible tools, observes their outputs, and decides whether to continue or finish. The release also includes the Qwen2.5-1.5B-Instruct LoRA adapter, task checkpoints, model download guidance, and reproduction steps.
 
 Official baseline for **Agent-Based Model for Fetal Well-being Assessment through Cardiotocography**.
 
-The baseline models are trained using the challenge training data. A local **Qwen2.5-1.5B-Instruct model with a CTG LoRA adapter** interprets English requests, calls the task models, and produces a structured JSON report and an English assessment report.
+The task models are trained using the challenge training data. A local **Qwen2.5-1.5B-Instruct model with a CTG LoRA adapter** interprets English requests and controls the Task4 tool loop: it selects the next eligible tool, reads structured tool observations, and decides when the requested objective is complete. The Python executor validates tool availability and runs only registered tools. Task4 produces a structured JSON report and an English assessment report.
 
 ```text
 Task1: DUS -> FHR reconstruction

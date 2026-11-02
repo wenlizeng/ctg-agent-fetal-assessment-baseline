@@ -21,8 +21,10 @@ GOAL_ROUTER_SYSTEM = (
     "does not request a full report."
 )
 ACTION_ROUTER_SYSTEM = (
-    "Choose the next action needed to satisfy the requested CTG goal using the observations. "
-    "Select only an item from available_actions. Return one JSON object with the action field."
+    "You control a CTG analysis agent. Read the request, completed work, and tool observations, "
+    "then choose the next useful action. Do not assume a fixed sequence. Select only from "
+    "available_actions. Choose finish only when the requested goal is satisfied. Return one JSON "
+    "object with the action field. Do not provide hidden reasoning."
 )
 
 
@@ -126,43 +128,36 @@ class QwenAgent:
         if goal is None:
             answer = self._ask(GOAL_ROUTER_SYSTEM, {"request": text})
             goal = answer.get("goal")
-        if goal not in {"reconstruct", "segment", "risk", "report"}:
+        if goal == "clarify":
             return {"message": "Please specify whether you want FHR reconstruction, event segmentation, risk assessment, or a complete report."}
+        if goal not in {"reconstruct", "segment", "risk", "report"}:
+            raise ValueError(f"Unsupported goal selected by Qwen: {goal}")
         if not self.record_id or (not self.wav_path and "task1" not in self.state):
             return {"message": "Please provide a record identifier and either a DUS recording or a 4 Hz FHR sequence."}
         if goal == "reconstruct" and not self.wav_path:
             return {"message": "FHR reconstruction requires the original DUS recording; the current input is already an FHR sequence."}
-        target = {"reconstruct": "quality", "segment": "task2", "risk": "task3", "report": "report"}[goal]
         error = None
         for _ in range(14):
-            available = []
-            if "task1" not in self.state:
-                available.append("reconstruct")
-            else:
-                if "quality" not in self.state:
-                    available.append("check_quality")
-                else:
-                    if goal != "reconstruct" and "task2" not in self.state:
-                        available.append("segment")
-                    if goal in {"risk", "report"} and "task2" in self.state and "task3" not in self.state:
-                        available.append("classify")
-                    if goal == "report" and "task3" in self.state and "report" not in self.state:
-                        available.append("report")
-            if target in self.state:
+            available = self.available_actions(goal)
+            goal_satisfied = self.goal_satisfied(goal)
+            if goal_satisfied:
                 available.append("finish")
             observation = {
-                "task1": ({"coverage": self.state["task1"]["coverage"]} if "task1" in self.state else None),
+                "task1": ({"coverage": self.state["task1"]["coverage"],
+                           "missing_rate": self.state["task1"]["missing_rate"]}
+                          if "task1" in self.state else None),
                 "quality": self.state.get("quality"),
                 "task2": ({"mean_confidence": self.state["task2"]["mean_confidence"],
-                           "acceleration_count": int(np.sum(self.state["task2"]["labels"] == 1)),
-                           "deceleration_count": int(np.sum(self.state["task2"]["labels"] == -1))}
+                           "acceleration_samples": int(np.sum(self.state["task2"]["labels"] == 1)),
+                           "deceleration_samples": int(np.sum(self.state["task2"]["labels"] == -1))}
                           if "task2" in self.state else None),
                 "task3": self.state.get("task3"),
             }
             choice = self._ask(ACTION_ROUTER_SYSTEM,
                                {"request": text, "goal": goal, "completed": list(self.state),
                                 "observations": observation,
-                                "available_actions": available, "last_error": error})
+                                "available_actions": available, "goal_satisfied": goal_satisfied,
+                                "last_error": error})
             action = choice.get("action")
             if action not in available:
                 error = "Action not available; use available_actions"
@@ -178,6 +173,30 @@ class QwenAgent:
                 error = str(exc)
                 self.trace.append({"kind": "tool", "action": action, "status": "error", "error": error})
         raise RuntimeError(f"Agent step budget exceeded: {error}")
+
+    def goal_satisfied(self, goal):
+        required = {
+            "reconstruct": ("task1", "quality"),
+            "segment": ("task2",),
+            "risk": ("task3",),
+            "report": ("report",),
+        }[goal]
+        return all(key in self.state for key in required)
+
+    def available_actions(self, goal):
+        """Expose only registered tools whose input requirements are satisfied."""
+        actions = []
+        if "task1" not in self.state and self.wav_path is not None:
+            actions.append("reconstruct")
+        if "task1" in self.state and "quality" not in self.state:
+            actions.append("check_quality")
+        if goal in {"segment", "risk", "report"} and "quality" in self.state and "task2" not in self.state:
+            actions.append("segment")
+        if goal in {"risk", "report"} and "task2" in self.state and "task3" not in self.state:
+            actions.append("classify")
+        if goal == "report" and "task2" in self.state and "task3" in self.state and "report" not in self.state:
+            actions.append("report")
+        return actions
 
     def execute(self, action, batch_size):
         if action == "reconstruct":
@@ -235,4 +254,4 @@ class QwenAgent:
 
     def run(self, record_id, wav_path, batch_size=32):
         self.reset(record_id, wav_path=wav_path)
-        return self.request("Complete end-to-end assessment and English report", batch_size, goal="report")
+        return self.request("Complete end-to-end assessment and English report", batch_size)

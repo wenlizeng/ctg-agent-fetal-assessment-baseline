@@ -19,11 +19,11 @@ Task2 uses a three-channel softmax output. Task3 uses a single-logit sigmoid cla
 
 ## Validation results
 
-On the 495-record Task4 validation set, the Qwen LoRA baseline achieved Task4 Score 0.697321, E2E Score 0.713333, and Report Score 0.633273 using the organizer's Task4 scoring implementation. Task1 and Task2 validation outputs were reused after checkpoint-hash verification; Task3 was recomputed using the flow checkpoint.
+On the official validation set, the Qwen-driven Task4 baseline achieved a Task4 Score of 0.697321, an E2E Score of 0.713333, and a Report Score of 0.633273 using the organizer's scoring implementation.
 
 ## Agent behavior
 
-The Qwen controller selects a requested goal and chooses only from registered actions. The executor checks tool dependencies, reuses completed outputs, and records an action trace. Structured report fields and event intervals are generated from tool results. A rule-based controller remains available with `--agent rule`.
+Qwen interprets the requested goal and selects the next eligible registered tool from the current state and structured observations. After each tool returns, Qwen can choose another eligible action or finish once the goal is satisfied. The Python executor validates prerequisites, restricts execution to registered tools, reuses completed outputs, and records the decisions and tool results in an action trace. Structured report fields and event intervals are grounded in tool outputs. A deterministic rule-based controller remains available with `--agent rule`.
 
 ## Important limitations
 
