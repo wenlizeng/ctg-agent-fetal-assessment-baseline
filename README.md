@@ -2,6 +2,12 @@
 
 ## Update Notes
 
+**November 3, 2026** — Added parsing code and documentation for Task1 `.fetal` labels.
+
+- [ctg_baseline/io.py](ctg_baseline/io.py): Parsing code.
+- [data/FETAL_FORMAT.md](data/FETAL_FORMAT.md): Format documentation.
+- [examples/read_task1_label.py](examples/read_task1_label.py): Loading example.
+
 **November 2, 2026** — Updated the baseline release with a Qwen-driven Task4 tool-use loop. Qwen interprets the request, selects eligible tools, observes their outputs, and decides whether to continue or finish. The release also includes the Qwen2.5-1.5B-Instruct LoRA adapter, task checkpoints, model download guidance, and reproduction steps.
 
 Official baseline for **Agent-Based Model for Fetal Well-being Assessment through Cardiotocography**.
@@ -33,6 +39,8 @@ Run the following commands from the repository root.
 ## 2. Data and model files
 
 Place the challenge training dataset under `data/`, following the [dataset directory structure](data/README.md). File paths in the manifests are relative to `data/`.
+
+Task1 reference FHR labels are stored in binary `.fetal` files. See the [format and loading guide](data/FETAL_FORMAT.md) for `load_fetal_fhr`, valid-sample handling, and CSV export. Inspect a training pair with `python -m examples.read_task1_label`.
 
 The trained task checkpoints and CTG LoRA adapter are included in the repository under `checkpoints/` and `models/qwen_lora/`:
 
@@ -129,7 +137,7 @@ Generate a complete CTG assessment report.
 exit
 ```
 
-The Agent reuses intermediate outputs within the session. For FHR input, use `--input-kind fhr` and a 4,800-sample, 4 Hz FHR file in NPY, NPZ, or CSV format. Add `--request "Assess fetal risk for this recording."` to run one request and exit.
+The Agent reuses intermediate outputs within the session. For FHR input, use `--input-kind fhr` and a 4,800-sample, 4 Hz FHR file in NPY, NPZ, CSV, or `.fetal` format. Add `--request "Assess fetal risk for this recording."` to run one request and exit.
 
 ## Contact
 
