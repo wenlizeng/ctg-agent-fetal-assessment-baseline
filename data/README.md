@@ -1,5 +1,7 @@
 # Released training dataset
 
+For Task1 and Task4 reference FHR labels, see the [.fetal binary format and Python loading guide](FETAL_FORMAT.md).
+
 This directory contains the public challenge training inputs, labels and manifests using the following layout:
 
 ```text
@@ -9,7 +11,7 @@ data/
 │   ├── labels/train/fetal/
 │   └── manifests/train.csv
 ├── task2/
-│   ├── data/train/<database>__<source-file>.csv
+│   ├── data/train/t2_00001.csv
 │   └── manifests/train_windows.csv
 ├── task3/
 │   ├── data/train/
@@ -22,8 +24,6 @@ data/
     └── manifests/train.csv
 ```
 
-Paths stored in the official manifests are relative to this `data/` directory. Task2 is released as one flat training set. Its filenames use `<database>__<source-file>.csv` only to avoid source-record name collisions; the database prefix is provenance metadata, not a separate challenge subset.
-
-The manifest columns are limited to sample IDs, data paths, training labels, window offsets, and grouping IDs. `source_record_id` identifies windows from the same original recording; Task3 additionally supplies an anonymous `patient_id` so all windows from one patient can be kept together in future training splits. All published rows belong to the training set.
+Manifest paths are relative to this `data/` directory. The participant training data have been streamlined. All published rows belong to the training set.
 
 Only training inputs, training labels and training manifests belong here. Validation and test inputs and labels remain private.
