@@ -25,5 +25,3 @@ data/
 ```
 
 Manifest paths are relative to this `data/` directory. The participant training data have been streamlined. All published rows belong to the training set.
-
-Only training inputs, training labels and training manifests belong here. Validation and test inputs and labels remain private.
